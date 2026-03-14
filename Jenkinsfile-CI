@@ -1,105 +1,113 @@
 pipeline {
 agent any
 
-```
 environment {
-    DOCKER_USERNAME = "iamomswarupnanda"
+DOCKER_USERNAME = "iamomswarupnanda"
 }
 
 stages {
 
-    stage("1. Cleanup") {
-        steps {
-            deleteDir()
+```
+stage("1. Cleanup") {
+    steps {
+        deleteDir()
+    }
+}
+
+stage("2. Git Checkout") {
+    steps {
+        dir("DevOps-CI-CD-Kubernetes") {
+            git branch: 'main',
+            credentialsId: 'my_github_creds',
+            url: 'https://github.com/Omswarup71/DevOps-CI-CD-Kubernetes.git'
         }
     }
+}
 
-    stage("2. Git Checkout") {
-        steps {
-            dir("DevopsProject1") {
-                git branch: 'main', url: 'https://github.com/Omswarup71/DevopsProject1.git'
-            }
+stage("3. Maven Unit Test") {
+    steps {
+        dir("DevOps-CI-CD-Kubernetes") {
+            sh "mvn test"
         }
     }
+}
 
-    stage("3. Maven Unit Test") {
-        steps {
-            dir("DevopsProject1") {
-                sh "mvn test"
-            }
+stage("4. Maven Build") {
+    steps {
+        dir("DevOps-CI-CD-Kubernetes") {
+            sh "mvn clean install -DskipTests"
         }
     }
+}
 
-    stage("4. Maven Build") {
-        steps {
-            dir("DevopsProject1") {
-                sh "mvn clean install -DskipTests"
-            }
+stage("5. Maven Integration Test") {
+    steps {
+        dir("DevOps-CI-CD-Kubernetes") {
+            sh "mvn verify"
         }
     }
+}
 
-    stage("5. Maven Integration Test") {
-        steps {
-            dir("DevopsProject1") {
-                sh "mvn verify"
-            }
-        }
-    }
-
-    stage("6. Docker Image Build") {
-        steps {
-            dir("DevopsProject1") {
-                script {
-                    JOB = env.JOB_NAME.toLowerCase()
-                    sh "docker build -t ${JOB}:${BUILD_NUMBER} ."
-                }
-            }
-        }
-    }
-
-    stage("7. Docker Image Tag") {
-        steps {
+stage("6. Docker Image Build") {
+    steps {
+        dir("DevOps-CI-CD-Kubernetes") {
             script {
                 JOB = env.JOB_NAME.toLowerCase()
-                sh "docker tag ${JOB}:${BUILD_NUMBER} ${DOCKER_USERNAME}/${JOB}:v${BUILD_NUMBER}"
-                sh "docker tag ${JOB}:${BUILD_NUMBER} ${DOCKER_USERNAME}/${JOB}:latest"
+                sh "docker build -t ${JOB}:${BUILD_NUMBER} ."
             }
         }
     }
+}
 
-    stage("8. Trivy Image Scan") {
-        steps {
-            script {
+stage("7. Docker Image Tag") {
+    steps {
+        script {
+            JOB = env.JOB_NAME.toLowerCase()
+            sh "docker tag ${JOB}:${BUILD_NUMBER} ${DOCKER_USERNAME}/${JOB}:v${BUILD_NUMBER}"
+            sh "docker tag ${JOB}:${BUILD_NUMBER} ${DOCKER_USERNAME}/${JOB}:latest"
+        }
+    }
+}
+
+stage("8. Trivy Image Scan") {
+    steps {
+        script {
+            JOB = env.JOB_NAME.toLowerCase()
+            sh "trivy image --no-progress ${DOCKER_USERNAME}/${JOB}:v${BUILD_NUMBER} > scan.txt || true"
+        }
+    }
+}
+
+stage("9. Docker Image Push") {
+    steps {
+        script {
+
+            withCredentials([usernamePassword(
+                credentialsId: 'my_dockerhub_creds',
+                passwordVariable: 'my_docker_pass',
+                usernameVariable: 'my_docker_user'
+            )]) {
+
+                sh """
+                echo \$my_docker_pass | docker login -u \$my_docker_user --password-stdin
+                """
+
                 JOB = env.JOB_NAME.toLowerCase()
-                sh "trivy image --no-progress ${DOCKER_USERNAME}/${JOB}:v${BUILD_NUMBER} > scan.txt || true"
+
+                sh "docker push ${DOCKER_USERNAME}/${JOB}:v${BUILD_NUMBER}"
+                sh "docker push ${DOCKER_USERNAME}/${JOB}:latest"
             }
         }
     }
+}
 
-    stage("9. Docker Image Push") {
-        steps {
-            script {
-                withCredentials([usernamePassword(credentialsId: 'my_dockerhub_creds', usernameVariable: 'docker_user', passwordVariable: 'docker_pass')]) {
-
-                    sh """
-                    echo \$docker_pass | docker login -u \$docker_user --password-stdin
-                    """
-
-                    JOB = env.JOB_NAME.toLowerCase()
-
-                    sh "docker push ${DOCKER_USERNAME}/${JOB}:v${BUILD_NUMBER}"
-                    sh "docker push ${DOCKER_USERNAME}/${JOB}:latest"
-                }
-            }
-        }
-    }
-
-    stage("10. Docker Image Cleanup") {
-        steps {
-            sh "docker image prune -af"
-        }
+stage("10. Docker Image Cleanup") {
+    steps {
+        sh "docker image prune -af"
     }
 }
 ```
 
 }
+}
+
