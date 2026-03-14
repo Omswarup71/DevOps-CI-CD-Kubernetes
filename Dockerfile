@@ -1,7 +1,12 @@
 FROM openjdk:8-jdk-slim
 
+# Create a directory for the app
+WORKDIR /app
+
 EXPOSE 8080
 
-COPY target/devops-integration.jar devops-integration.jar
+# Copy from the target folder to our workdir
+COPY target/devops-integration.jar app.jar
 
-ENTRYPOINT ["java","-jar","/devops-integration.jar"]
+# Run the jar
+ENTRYPOINT ["java", "-jar", "app.jar"]
