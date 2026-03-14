@@ -1,12 +1,5 @@
-FROM openjdk:8-jdk-slim
-
-# Create a directory for the app
+FROM eclipse-temurin:8-jdk
 WORKDIR /app
-
-EXPOSE 8080
-
-# Copy from the target folder to our workdir
 COPY target/devops-integration.jar app.jar
-
-# Run the jar
+EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]
